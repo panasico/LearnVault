@@ -1,38 +1,45 @@
 package com.vladooha.controller;
 
-import com.vladooha.data.entities.LoginInfo;
-import com.vladooha.data.entities.ProfileInfo;
-import com.vladooha.data.entities.Role;
-import com.vladooha.data.entities.courses.CourseCategory;
-import com.vladooha.data.entities.courses.Teacher;
-import com.vladooha.data.repositories.LoginInfoRepo;
-import com.vladooha.data.repositories.ProfileInfoRepo;
-import com.vladooha.data.repositories.courses.CourseCategoryRepo;
-import com.vladooha.data.repositories.courses.TeacherRepo;
+import com.vladooha.data.form.MetatagCreateForm;
+import com.vladooha.data.form.MetatagForm;
+import com.vladooha.data.validators.annotations.MetatagExists;
+import com.vladooha.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.security.Principal;
-import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 @Controller
 public class AdminPanelController {
     @Autowired
-    private LoginInfoRepo loginInfoRepo;
-    @Autowired
-    private ProfileInfoRepo profileInfoRepo;
-    @Autowired
-    private TeacherRepo teacherRepo;
-    @Autowired
-    private CourseCategoryRepo courseCategoryRepo;
+    private AdminService adminService;
 
     @GetMapping("/admin_panel")
-    public String adminPanel(Principal principal) {
-        if (isAdmin(principal)) {
+    public String adminPanel(
+            Map<String, Object> model,
+            Principal principal) {
+        String adminName = principal.getName();
+        if (adminService.isAdmin(principal)) {
+            initModel(model);
+
+            return "admin_panel";
+        }
+
+        return "";
+    }
+
+    @GetMapping("/admin_panel/students")
+    public String adminPanelWithStudents(
+            @RequestParam String teacherName,
+            Map<String, Object> model,
+            Principal principal) {
+        if (adminService.isAdmin(principal)) {
+            model.put("students", adminService.getStudentsByTeacher(principal, teacherName));
+
             return "admin_panel";
         }
 
@@ -44,35 +51,9 @@ public class AdminPanelController {
     public String addTeacher(
             @RequestParam String teacherName,
             Principal principal) {
-        if (isAdmin(principal)) {
-            ProfileInfo teacherProfileInfo = profileInfoRepo.findByUsername(teacherName);
+        String response = adminService.addTeacher(principal, teacherName);
 
-            if (teacherProfileInfo != null) {
-                if (teacherRepo.findByUsername(teacherName) == null) {
-                    Teacher teacher = new Teacher();
-                    teacher.setUsername(teacherName);
-
-                    teacherRepo.save(teacher);
-
-                    LoginInfo loginInfo = loginInfoRepo.findByUsername(teacherName);
-                    if (loginInfo != null) {
-                        Set<Role> roles = loginInfo.getRoles();
-                        roles.add(Role.TEACHER);
-                        loginInfo.setRoles(roles);
-
-                        loginInfoRepo.save(loginInfo);
-                    }
-
-                    return "OK";
-                } else {
-                    return "ALREADY_REG";
-                }
-            } else {
-                return "USER_NOT_FOUND";
-            }
-        } else {
-            return "NO_PERMISSIONS";
-        }
+        return response;
     }
 
     @GetMapping("/ajax/add_student")
@@ -81,27 +62,9 @@ public class AdminPanelController {
             @RequestParam String teacherName,
             @RequestParam String studentName,
             Principal principal) {
-        if (isAdmin(principal)) {
-            Teacher teacher = teacherRepo.findByUsername(teacherName);
+        String response = adminService.addStudent(principal, teacherName, studentName);
 
-            if (teacher != null) {
-                ProfileInfo studentProfileInfo = profileInfoRepo.findByUsername(studentName);
-
-                if (studentProfileInfo != null) {
-                    Set<ProfileInfo> students = teacher.getStudents();
-                    students.add(studentProfileInfo);
-                    teacher.setStudents(students);
-                }
-
-                teacherRepo.save(teacher);
-
-                return "OK";
-            } else {
-                return "USER_NOT_FOUND";
-            }
-        } else {
-            return "NO_PERMISSIONS";
-        }
+        return response;
     }
 
     @GetMapping("/ajax/remove_student")
@@ -110,51 +73,19 @@ public class AdminPanelController {
             @RequestParam String teacherName,
             @RequestParam String studentName,
             Principal principal) {
-        if (isAdmin(principal)) {
-            Teacher teacher = teacherRepo.findByUsername(teacherName);
+        String response = adminService.removeStudent(principal, teacherName, studentName);
 
-            if (teacher != null) {
-                ProfileInfo studentProfileInfo = profileInfoRepo.findByUsername(studentName);
-
-                if (studentProfileInfo != null) {
-                    Set<ProfileInfo> students = teacher.getStudents();
-                    students.remove(studentProfileInfo);
-                    teacher.setStudents(students);
-                }
-
-                teacherRepo.save(teacher);
-
-                return "OK";
-            } else {
-                return "USER_NOT_FOUND";
-            }
-        } else {
-            return "NO_PERMISSIONS";
-        }
+        return response;
     }
 
     @GetMapping("/ajax/add_admin")
     @ResponseBody
     public String addAdmin(
-            @RequestParam String adminName,
+            @RequestParam(name = "adminName") String newAdminName,
             Principal principal) {
-        if (isAdmin(principal)) {
-            LoginInfo loginInfo = loginInfoRepo.findByUsername(adminName);
+        String response = adminService.addAdmin(principal, newAdminName);
 
-            if (loginInfo != null) {
-                Set<Role> roles = loginInfo.getRoles();
-                roles.add(Role.ADMIN);
-                loginInfo.setRoles(roles);
-
-                loginInfoRepo.save(loginInfo);
-
-                return "OK";
-            } else {
-                return "USER_NOT_FOUND";
-            }
-        } else {
-            return "NO_PERMISSIONS";
-        }
+        return response;
     }
 
     @GetMapping("/ajax/add_course_category")
@@ -162,35 +93,51 @@ public class AdminPanelController {
     public String addCourseCategory(
             @RequestParam String categoryName,
             Principal principal) {
-        if (isAdmin(principal)) {
-            List<CourseCategory> courseCategoryList = courseCategoryRepo.findAll();
-            CourseCategory courseCategory = courseCategoryRepo.findByName(categoryName);
+        String response = adminService.addCourseCategory(principal, categoryName);
 
-            if (courseCategory == null) {
-                CourseCategory newCourseCategory = new CourseCategory();
-                newCourseCategory.setName(categoryName);
-                newCourseCategory.setNum(courseCategoryList.size() + 1);
-
-                courseCategoryRepo.save(newCourseCategory);
-
-                return "OK";
-            } else {
-                return "ALREADY_REG";
-            }
-        } else {
-            return "NO_PERMISSIONS";
-        }
+        return response;
     }
 
-    private boolean isAdmin(Principal principal) {
-        LoginInfo loginInfo = loginInfoRepo.findByUsername(principal.getName());
+    @PostMapping("/ajax/add_metatag")
+    public String addTagToMetatag(
+            @Valid @ModelAttribute("metatagCreateForm") MetatagCreateForm metatagCreateForm,
+            BindingResult result,
+            Map<String, Object> model,
+            Principal principal) {
+        initModel(model);
 
-        if (loginInfo != null) {
-            if (loginInfo.getRoles().contains(Role.ADMIN)) {
-                return true;
-            }
+        if (result.hasErrors()) {
+            model.put("metatagCreateForm", metatagCreateForm);
+
+            return "admin_panel";
         }
 
-        return false;
+        adminService.addMetatag(principal, metatagCreateForm);
+
+        return "admin_panel";
+    }
+
+    @PostMapping("/ajax/add_tag_to_metatag")
+    public String addTagToMetatag(
+            @Valid @ModelAttribute("metatagForm")MetatagForm metatagForm,
+            BindingResult result,
+            Map<String, Object> model,
+            Principal principal) {
+        initModel(model);
+
+        if (result.hasErrors()) {
+            model.put("metatagForm", metatagForm);
+
+            return "admin_panel";
+        }
+
+        adminService.addTagToMetatag(principal, metatagForm);
+
+        return "admin_panel";
+    }
+
+    private void initModel(Map<String, Object> model) {
+        model.putIfAbsent("metatagForm", new MetatagForm());
+        model.putIfAbsent("metatagCreateForm", new MetatagCreateForm());
     }
 }

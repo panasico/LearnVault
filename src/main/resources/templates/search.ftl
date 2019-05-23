@@ -8,10 +8,10 @@
     <link href="../static/css/demo1.css" rel="stylesheet">
     <link href="../static/css/index.css" rel="stylesheet">
 	<link href="../static/css/search.css" rel="stylesheet">
-    <script src="../static/scripts/jquery-1.12.4.min.js"></script>
-    <script src="../static/scripts/wb.carousel.min.js"></script>
+    <script src="../static/scripts/libs/jquery-1.12.4.min.js"></script>
+    <script src="../static/scripts/libs/wb.carousel.min.js"></script>
     <script src="../static/scripts/searchindex.js"></script>
-    <script src="../static/scripts/wb.sitesearch.min.js"></script>
+    <script src="../static/scripts/libs/wb.sitesearch.min.js"></script>
     <script src="../static/scripts/login.js"></script>
 </head>
 <body>
@@ -20,18 +20,31 @@
         <div id="LayerMain" style="width:1200px; min-height: 800px;">
             <@m.header_site/>
             <div style="margin: 20px 40px 20px 40px;">
-                <div style="margin:20px 0;"><h3 class="h3">Результаты поиска:</h3></div>
+				<div style="margin:20px 0;">
+					<#if currentCategory??>
+						<h3 class="h3">Курсы категории "${currentCategory.getName()}":</h3>
+					<#else>
+						<h3 class="h3">Результаты поиска:</h3>
+					</#if>
+				</div>
                 <hr>
 				<#if courses??>
 					<#list courses as course>
 					    <a href="#dialog${course.id}" name="modal">
 						    <div class="result_container">
-								<img src="../static/images/business.jpg" style="width:160px;height:160px;float:left;">
+								<#if course.pic??>
+									<img src=${course.pic} style="width:160px;height:160px;float:left;">
+								<#else>
+									<img src="../static/images/business.jpg" style="width:160px;height:160px;float:left;">
+								</#if>
 								<div style="float:left;min-height:160px;max-width:900px;">
 									<div><h5 class="H5" style="margin: 10px 50px; font-size:18px;">${course.name}</h5></div>
 									<div>
 										<h3 class="result_description" style="-webkit-line-clamp: 3;">
 											${course.description}
+											<#if course.feedback??>
+												</br>Сложность: ${course.feedback.complexity}
+											</#if>
 										</h3>
 									</div>
 									<div style="margin: 10px 50px;">
@@ -63,6 +76,12 @@
 											<span class="tag">${tag.name}</span>
 										</#list>
 									</div>
+									    <#if 0 < course.time>
+                                            <@m.time_to_search course.time/>
+                                        <#else>
+                                            <label id="no_time" class="timer">Курс не ограничен по времени</label>
+                                        </#if>
+
 							  		<div style="width:750px;">
 										<input id="btn_save_page" class="orangeButton" type="button" value="Пройти курс" style="display: block; width: 200px; height: 40px; margin: 100px auto;" onClick="window.location.href='/course/${course.id}';return false;">
 									</div>
@@ -71,7 +90,6 @@
 						<!-- Макска, которая затемняет весь экран -->
 						  <div id="mask"></div>
 						</div>
-
 					</#list>
 				<#else>
 					<div style="margin:20px 0; color: red;"><h3 class="h3">Ничего не найдено!</h3></div>

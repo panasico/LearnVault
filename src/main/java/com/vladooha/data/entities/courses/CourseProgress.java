@@ -2,8 +2,10 @@ package com.vladooha.data.entities.courses;
 
 import com.vladooha.data.entities.LoginInfo;
 import com.vladooha.data.entities.ProfileInfo;
+import org.hibernate.annotations.ColumnDefault;
 
 import javax.persistence.*;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -53,6 +55,16 @@ public class CourseProgress {
 
     private long beginTime;
 
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(name = "wrong_answered_test_pages",
+            joinColumns = @JoinColumn(name = "progress_id", referencedColumnName = "course_prog_id"),
+            inverseJoinColumns = @JoinColumn(name = "page_id", referencedColumnName = "id"))
+    private Set<CourseTestPage> missedAnswers = new HashSet<>();
+
+    private boolean isRated = false;
+
+    private boolean isCompleted = false;
+
 
 
     public Long getCourseProgId() {
@@ -101,5 +113,29 @@ public class CourseProgress {
 
     public void setBeginTime(long beginTime) {
         this.beginTime = beginTime;
+    }
+
+    public boolean isRated() {
+        return isRated;
+    }
+
+    public void setRated(boolean rated) {
+        isRated = rated;
+    }
+
+    public boolean isCompleted() {
+        return isCompleted;
+    }
+
+    public void setCompleted(boolean completed) {
+        isCompleted = completed;
+    }
+
+    public Set<CourseTestPage> getMissedAnswers() {
+        return missedAnswers;
+    }
+
+    public void setMissedAnswers(Set<CourseTestPage> missedAnswers) {
+        this.missedAnswers = missedAnswers;
     }
 }

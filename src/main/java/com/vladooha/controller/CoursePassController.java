@@ -1,14 +1,19 @@
 package com.vladooha.controller;
 
 import com.vladooha.data.entities.courses.*;
+import com.vladooha.data.form.FeedbackForm;
 import com.vladooha.data.repositories.ProfileInfoRepo;
 import com.vladooha.service.CourseService;
+import com.vladooha.service.RatingService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
+import java.beans.FeatureDescriptor;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,8 +31,11 @@ public class CoursePassController {
     @Autowired
     private CourseService courseService;
     @Autowired
+    private RatingService ratingService;
+    @Autowired
     private ProfileInfoRepo profileInfoRepo;
 
+    /// GET
     @GetMapping("/course/{course_id}")
     public String getCourse(@PathVariable("course_id") long course_id,
                             @RequestParam(value = "page_num", defaultValue = "0") int page_num,
@@ -64,9 +72,9 @@ public class CoursePassController {
             model.put("page_num", coursePage.getNum());
             model.put("course_id", course.getId());
             model.put("course_name", course.getName());
-            if (course.getTime() > 0L) {
-                CourseProgress courseProgress = courseService.getCourseProgress(principal.getName(), course);
 
+            CourseProgress courseProgress = courseService.getCourseProgress(principal.getName(), course);
+            if (course.getTime() > 0L) {
                 if (courseProgress != null) {
                     model.put("time", course.getTime() - (System.currentTimeMillis() - courseProgress.getBeginTime()));
                 }
@@ -87,6 +95,9 @@ public class CoursePassController {
 
                     model.put("title", courseTestPage.getTitle());
                     model.put("question", courseTestPage.getQuestion());
+                    if (courseProgress.getMissedAnswers().contains(courseTestPage)) {
+                        model.put("failed", true);
+                    }
 
                     if (courseTestPage.getType().equals(CourseService.TEST_TEXT_PAGE)) {
                         return "/course/course_page_test_write_answers";
@@ -122,6 +133,43 @@ public class CoursePassController {
         return "";
     }
 
+    @GetMapping("/course/{course_id}/rate")
+    public String rateCourseGet(@PathVariable("course_id") long course_id,
+                             Map<String, Object> model) {
+        FeedbackForm feedbackForm = new FeedbackForm();
+
+        model.put("course_id", course_id);
+        model.put("feedbackForm", feedbackForm);
+        model.put("complexity", feedbackForm.getComplexity());
+
+        return "/course/course_rating";
+    }
+
+    /// POST
+    @PostMapping("/course/{course_id}/rate")
+    public String rateCoursePost(@PathVariable("course_id") long course_id,
+                             @Valid @ModelAttribute("feedbackForm")FeedbackForm feedbackForm,
+                             BindingResult bindingResult,
+                             Map<String, Object> model,
+                             Principal principal) {
+        logger.debug("/course/{course_id}/rate");
+        logger.debug("Complexity: " + feedbackForm.getComplexity());
+        logger.debug("Any errors: " + bindingResult.hasErrors());
+        logger.debug("Right answers percent - " + feedbackForm.getRightAnsPercent());
+
+        if (bindingResult.hasErrors()) {
+            model.put("course_id", course_id);
+            model.put("feedbackForm", feedbackForm);
+
+            return "/course/course_rating";
+        }
+
+        ratingService.addRating(feedbackForm, course_id, principal.getName());
+
+        return "redirect:/course/course_rate_ending";
+    }
+
+    /// AJAX
     @GetMapping("/ajax/course_check_result/")
     @ResponseBody
     public String checkResult(

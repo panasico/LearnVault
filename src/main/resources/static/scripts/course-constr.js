@@ -67,6 +67,7 @@ function setLocalListsTest(list_answer, list_right_answer, list_points, list_typ
     localStorage.setItem('list_right_answer', JSON.stringify(list_right_answer));
     localStorage.setItem('list_points', JSON.stringify(list_points));
     localStorage.setItem('list_types_test', JSON.stringify(list_types_test));
+	localStorage.setItem('list_flag_again', JSON.stringify(list_flag_again));
 }
 function getCurrentPage(){
     return getLocalKey('current_page');
@@ -146,7 +147,8 @@ function sendCourse() {
             name: getLocalKey("course_name"),
             description: getLocalKey("description"),
             time: getLocalKey("time"), 			//добавил время!
-            isPrivate: getLocalKey("type_course")
+            isPrivate: getLocalKey("type_course"),
+            pic: localStorage.getItem("picture")
 }),
     success: function (data) {
         if (data === "") { }
@@ -233,6 +235,8 @@ function sendTextPage(course, page, local_page) {
 }
 
 function sendTestPage(course, page, local_page) {
+    console.log("Sending test page " + page);
+
     var list_pageId = getLocalList("list_pageId"); //list LOCAL pageId
     var list_title = getLocalList("list_title");
     var list_text = getLocalList("list_text");
@@ -243,6 +247,9 @@ function sendTestPage(course, page, local_page) {
     var list_points = getLocalList('list_points');
     //и тип теста - 'text', 'radio', 'chechbox'
     var list_types_test = getLocalList('list_types_test');
+	
+	//NEW добавил флаг возможности повторного прохождения
+	var list_flag_again = getLocalList('list_flag_again');
 
     //alert("List: " + list_pageId);
 
@@ -266,9 +273,10 @@ function sendTestPage(course, page, local_page) {
             // ИЛИ можешь склеить верные номера ответов в строку - например ans = "Ответ1|}|{ona|Ответ2|}|{ona|Ответ3"
             // Если верными будут ответы 1 и 3, то отправляешь "13" или "31", главное, чтобы номер соответствовал порядку в ans
             // Второй варик предпочтительнее, напиши потом, чо выбрал
-
             score: list_points[indexTest] + "", //баллы за тест
-            type: list_types_test[indexTest] + "" //и тип теста - 'text', 'radio', 'chechbox'
+            type: list_types_test[indexTest] + "", //и тип теста - 'text', 'radio', 'chechbox'
+			//NEW ----------------------------------------------------------------------------------------------------------------------------------
+			again: list_flag_again[indexTest] + ""
         }),
         success: function (data) {
             // Сюда могу сообщить об ошибке, но пока что её игнорим, здесь можно нихуя не добавлять
